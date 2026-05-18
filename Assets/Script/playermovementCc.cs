@@ -1,67 +1,103 @@
 using UnityEngine;
+using Fusion;
 
-public class playermovementCc : MonoBehaviour
+public class playermovementCc : NetworkBehaviour
 {
     [SerializeField] float walkSpeed = 4f;
     [SerializeField] float runSpeed = 7f;
-
     [SerializeField] float gravity = -9.81f;
     [SerializeField] float jumpHeight = 2f;
-
     [SerializeField] float mouseSpeed = 1.5f;
 
     float xRot;
-    Vector3 velo;
+    Vector3 velocity;
     Transform camTr;
-
     CharacterController cc;
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public override void Spawned()
     {
         cc = GetComponent<CharacterController>();
-        Cursor.lockState = CursorLockMode.Locked;
 
-        camTr = Camera.main.transform;
+        Camera cam = GetComponentInChildren<Camera>(true);
+
+        if (cam == null)
+        {
+            Debug.LogError("Ghost1 안에서 Camera를 못 찾음");
+            return;
+        }
+
+        camTr = cam.transform;
+
+        bool isMine = Object.HasInputAuthority;
+        cam.gameObject.SetActive(isMine);
+
+        if (isMine)
+        {
+            Cursor.lockState = CursorLockMode.Locked;
+            Cursor.visible = false;
+        }
+
+        Debug.Log($"Spawned: {gameObject.name}, IsMine: {isMine}");
     }
 
     void Update()
     {
-        Move();
+        if (!Object.HasInputAuthority)
+            return;
+
         Look();
-    
-
-
     }
-    // Update is called once per frame
+
+    public override void FixedUpdateNetwork()
+    {
+        if (!Object.HasInputAuthority)
+            return;
+
+        Move();
+    }
 
     void Move()
     {
-        float h = Input.GetAxis("Horizontal");
-        float v = Input.GetAxis("Vertical");
+        if (cc == null)
+            return;
+
+        float h = Input.GetAxisRaw("Horizontal");
+        float v = Input.GetAxisRaw("Vertical");
 
         float curSpeed = Input.GetKey(KeyCode.LeftShift) ? runSpeed : walkSpeed;
-        bool grounded = cc.isGrounded;
-        if (grounded && velo.y < 0) velo.y = -2f;
 
+        Vector3 moveDir = transform.right * h + transform.forward * v;
 
-        Vector3 movDir = transform.right * h + transform.forward * v;
-        cc.Move(movDir * curSpeed * Time.deltaTime);
+        if (moveDir.magnitude > 1f)
+            moveDir.Normalize();
 
-        if (Input.GetButtonDown("Jump") && grounded) velo.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
-        velo.y += gravity * Time.deltaTime;
+        if (cc.isGrounded && velocity.y < 0)
+            velocity.y = -2f;
 
-        cc.Move(velo * Time.deltaTime);
+        if (Input.GetKey(KeyCode.Space) && cc.isGrounded)
+            velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+
+        velocity.y += gravity * Runner.DeltaTime;
+
+        Vector3 finalMove = moveDir * curSpeed + Vector3.up * velocity.y;
+
+        cc.Move(finalMove * Runner.DeltaTime);
     }
+
     void Look()
     {
-        float mouseX = Input.GetAxis("Mouse X") * mouseSpeed;
-        float mouseY = Input.GetAxis("Mouse Y") * mouseSpeed;
+        if (camTr == null)
+            return;
+
+        float mouseX = Input.GetAxisRaw("Mouse X") * mouseSpeed;
+        float mouseY = Input.GetAxisRaw("Mouse Y") * mouseSpeed;
 
         xRot -= mouseY;
-        xRot = Mathf.Clamp(xRot, -90f, 90f);
+        xRot = Mathf.Clamp(xRot, -80f, 80f);
 
         camTr.localRotation = Quaternion.Euler(xRot, 0f, 0f);
-        transform.Rotate(Vector3.up * mouseX);
+
+        // 좌우 회전
+        transform.Rotate(0f, mouseX, 0f);
     }
 }
