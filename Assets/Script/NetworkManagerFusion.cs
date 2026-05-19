@@ -7,13 +7,13 @@ public class NetworkManagerFusion : MonoBehaviour, INetworkRunnerCallbacks
 {
     public NetworkPrefabRef playerPrefab;
 
-    private NetworkRunner runner;
+    private NetworkRunner runner;/*포톤 퓨저 게임을 실제로 굴리는 엔진*/
 
-    async void Start()
+    async void Start()/*시간을 걸리는 작업을 기다리기 위해, await runner.Startgame()*/
     {
         runner = gameObject.AddComponent<NetworkRunner>();
         runner.AddCallbacks(this);
-        runner.ProvideInput = true;
+        runner.ProvideInput = true;/*클라이언트가 입력을 제공하겠따~~ 라는 뜻 마우스, 키보드*/
 
         await runner.StartGame(new StartGameArgs()
         {
@@ -43,6 +43,7 @@ public class NetworkManagerFusion : MonoBehaviour, INetworkRunnerCallbacks
         Debug.Log("[Fusion] player left " + player);
     }
 
+    /*이 함수들은 INetworkRunnerCallbacks를 사용하기 위한 콜백함수입니다.*/
     public void OnInput(NetworkRunner runner, NetworkInput input) { }
     public void OnInputMissing(NetworkRunner runner, PlayerRef player, NetworkInput input) { }
     public void OnShutdown(NetworkRunner runner, ShutdownReason shutdownReason) { }
